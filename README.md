@@ -4,7 +4,7 @@
 
 Does **self-supervised video pre-training** help recognise emotions in real-world video clips? This project fine-tunes and compares video transformers on **DFEW** (Dynamic Facial Expression in-the-Wild): 16,372 movie clips labelled with 7 emotions (happy, sad, neutral, angry, surprise, disgust, fear). All models are fine-tuned under the same protocol. The models are also tested on new real-world videos, to see how they behave outside the dataset.
 
-Group project by **Youssef Khazal** and **Melissa Fahed** (M.Sc. Data Science & AI, Université Côte d'Azur, 2026). Code refactored and re-evaluated in 2026.
+Group project by **Youssef Khazal** and [**Melissa Fahed**](https://github.com/Githubmelissa) (M.Sc. Data Science & AI, Université Côte d'Azur, 2026). Code refactored and re-evaluated in 2026.
 
 ---
 
@@ -113,6 +113,6 @@ notebooks/     original course-project notebooks (outputs cleared)
 
 ## Authors
 
-**Youssef Khazal** ([GitHub](https://github.com/youssef-khazal) · [LinkedIn](https://www.linkedin.com/in/youssef-khazal)) and **Melissa Fahed**.
+**Youssef Khazal** ([GitHub](https://github.com/youssef-khazal) · [LinkedIn](https://www.linkedin.com/in/youssef-khazal)) and **Melissa Fahed** ([GitHub](https://github.com/Githubmelissa)).
 
 Code under the [MIT License](LICENSE). DFEW is © its authors and restricted to non-commercial research. No DFEW data or frames are included in this repository.

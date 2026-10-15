@@ -46,3 +46,19 @@ def test_two_stage_training_writes_metrics(tmp_path, monkeypatch):
     assert sum(map(sum, saved["test_confusion_matrix"])) == 14  # every test clip evaluated exactly once
     assert (run / "best.pth").exists() and not (run / "last.pth").exists()
     assert len(pd.read_csv(run / "history.csv")) == 2  # one head epoch + one partial epoch
+
+
+def test_oom_fallback_keeps_effective_batch(monkeypatch):
+    calls = []
+
+    def fake_train(args):
+        calls.append((args.batch_size, args.grad_accum, args.resume))
+        if len(calls) == 1:
+            raise train_module.torch.OutOfMemoryError("CUDA out of memory")
+        return {"ok": True}
+
+    monkeypatch.setattr(train_module, "train", fake_train)
+    monkeypatch.setattr(train_module.torch.cuda, "empty_cache", lambda: None)
+    args = train_module.parse_args(["--dfew-root", "x", "--batch-size", "2", "--grad-accum", "4"])
+    assert train_module.train_with_oom_fallback(args) == {"ok": True}
+    assert calls == [(2, 4, False), (1, 8, True)]

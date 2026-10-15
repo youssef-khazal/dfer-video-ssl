@@ -227,5 +227,26 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
+def train_with_oom_fallback(args: argparse.Namespace) -> dict:
+    """Train; on GPU out-of-memory, halve the batch and double gradient accumulation.
+
+    The effective batch (batch_size x grad_accum) stays the same, and these models use
+    LayerNorm (no batch-size-dependent layers), so the training setup stays comparable.
+    Training resumes from the last finished epoch.
+    """
+    while True:
+        try:
+            return train(args)
+        except torch.OutOfMemoryError:
+            if args.batch_size <= 1:
+                raise
+            args.batch_size //= 2
+            args.grad_accum *= 2
+            args.resume = True
+            torch.cuda.empty_cache()
+            print(f"GPU out of memory -> retrying with batch {args.batch_size} x accumulation {args.grad_accum} "
+                  f"(same effective batch of {args.batch_size * args.grad_accum})", flush=True)
+
+
 if __name__ == "__main__":
-    train(parse_args())
+    train_with_oom_fallback(parse_args())

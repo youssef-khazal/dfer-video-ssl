@@ -4,7 +4,7 @@
 
 Does **self-supervised video pre-training** help recognise emotions in real-world video clips? This project fine-tunes and compares video transformers on **DFEW** (Dynamic Facial Expression in-the-Wild): 16,372 movie clips labelled with 7 emotions (happy, sad, neutral, angry, surprise, disgust, fear). All models are fine-tuned under the same protocol. The models are also tested on new real-world videos, to see how they behave outside the dataset.
 
-Group project by **Youssef Khazal** and [**Melissa Fahed**](https://github.com/Githubmelissa) (M.Sc. Data Science & AI, Université Côte d'Azur, 2026). Code refactored and re-evaluated in 2026.
+Group project by **Youssef Khazal** and [**Melissa Fahed**](https://github.com/Githubmelissa) (M.Sc. Data Science & AI, Université Côte d'Azur, 2026).
 
 ---
 
@@ -44,13 +44,11 @@ All checkpoints come from the Hugging Face Hub (`MCG-NJU/videomae-base-finetuned
 - **Loss:** cross-entropy with inverse-frequency class weights, AdamW, cosine schedule, mixed precision.
 - **Hardware:** a single RTX 4060 laptop GPU (8 GB).
 
-### What changed from the original course-project code
+### Implementation details
 
-Re-reading our original notebooks (kept in `notebooks/`) showed three problems, all fixed here and covered by tests:
-
-1. **Frame order.** Frames are named `1.jpg … 16.jpg`, but the loader sorted them as text, so clips were fed as 1, 10, 11, …, 16, 2, …, 9. This scrambled the motion that video models rely on. They are now sorted numerically (`tests/test_data.py`).
-2. **Model selection on the test set.** The fold's test file was used as the validation set for early stopping and choosing the best epoch, which makes test scores optimistic. A separate validation split is now taken from the training data.
-3. **Per-frame augmentation.** Random crops and flips were drawn separately for each frame, so the face moved between frames. One crop and flip is now applied to the whole clip.
+- **Temporal order:** frame files (`1.jpg … 16.jpg`) are sorted numerically, so clips are always fed in time order (`tests/test_data.py`).
+- **No test-set tuning:** early stopping and checkpoint selection use only the validation split taken from the training data.
+- **Clip-consistent augmentation:** one random crop and flip is drawn per clip and applied to all 16 frames, so motion between frames is preserved.
 
 ---
 

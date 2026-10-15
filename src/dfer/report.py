@@ -52,34 +52,74 @@ def recall_table(runs: list[dict]) -> str:
     return "\n".join(lines)
 
 
+# Fixed categorical order (one colour per model, never re-assigned) and a single-hue ramp for matrices.
+COLORS = {"videomae_k400": "#2a78d6", "videomae_ssl": "#eb6834", "videomae_ssl_2stage": "#1baf7a", "vjepa2": "#6250d6"}
+INK, MUTED, GRID, SURFACE = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb"
+
+
+def _style(ax) -> None:
+    ax.set_facecolor(SURFACE)
+    ax.grid(axis="y", color=GRID, linewidth=0.8)
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    for side in ("left", "bottom"):
+        ax.spines[side].set_color("#b8b7b1")
+    ax.tick_params(colors=MUTED)
+
+
 def plot_confusion(m: dict, path: Path) -> None:
     cm = np.array(m["test_confusion_matrix"], dtype=float)
     cm = cm / np.maximum(cm.sum(axis=1, keepdims=True), 1)
-    fig, ax = plt.subplots(figsize=(5.5, 4.8))
+    fig, ax = plt.subplots(figsize=(5.6, 4.9), facecolor=SURFACE)
     ax.imshow(cm, cmap="Blues", vmin=0, vmax=1)
     for i in range(len(EMOTIONS)):
         for j in range(len(EMOTIONS)):
-            ax.text(j, i, f"{cm[i, j]:.2f}", ha="center", va="center", fontsize=8, color="white" if cm[i, j] > 0.5 else "black")
+            ax.text(j, i, f"{cm[i, j]:.2f}", ha="center", va="center", fontsize=8,
+                    color="white" if cm[i, j] > 0.5 else INK)
     ax.set_xticks(range(len(EMOTIONS)), EMOTIONS, rotation=45, ha="right")
     ax.set_yticks(range(len(EMOTIONS)), EMOTIONS)
-    ax.set_xlabel("Predicted")
-    ax.set_ylabel("True")
-    ax.set_title(f"{PRETTY.get(m['model'], m['model'])}\nnormalised confusion matrix (test)", fontsize=9)
+    ax.set_xlabel("Predicted", color=MUTED)
+    ax.set_ylabel("True", color=MUTED)
+    ax.set_title(f"{PRETTY.get(m['model'], m['model'])}\nrow-normalised confusion matrix (test set)", fontsize=9, color=INK, loc="left")
     fig.tight_layout()
-    fig.savefig(path, dpi=150)
+    fig.savefig(path, dpi=150, facecolor=SURFACE)
     plt.close(fig)
 
 
 def plot_curves(runs: list[dict], path: Path) -> None:
-    fig, ax = plt.subplots(figsize=(7, 3.8))
-    for m in runs:
-        uars = [float(r["val_uar"]) for r in m["history"]]
-        ax.plot(range(1, len(uars) + 1), uars, marker="o", ms=3, label=PRETTY.get(m["model"], m["model"]))
-    ax.set(xlabel="Epoch (all stages)", ylabel="Validation UAR", title="Validation UAR during fine-tuning")
-    ax.grid(alpha=0.3)
-    ax.legend(fontsize=7)
+    fig, ax = plt.subplots(figsize=(7.5, 4), facecolor=SURFACE)
+    for m in sorted(runs, key=lambda r: list(COLORS).index(r["model"]) if r["model"] in COLORS else 99):
+        uars = [float(r["val_uar"]) * 100 for r in m["history"]]
+        ax.plot(range(1, len(uars) + 1), uars, marker="o", ms=4, linewidth=2,
+                color=COLORS.get(m["model"]), label=PRETTY.get(m["model"], m["model"]))
+    ax.set_xlabel("Epoch (head-only epochs included for 2-stage models)", color=MUTED)
+    ax.set_ylabel("Validation UAR (%)", color=MUTED)
+    ax.set_title("Validation UAR during fine-tuning", loc="left", color=INK, fontsize=11)
+    _style(ax)
+    ax.legend(fontsize=8, frameon=False)
     fig.tight_layout()
-    fig.savefig(path, dpi=150)
+    fig.savefig(path, dpi=150, facecolor=SURFACE)
+    plt.close(fig)
+
+
+def plot_recall(runs: list[dict], path: Path) -> None:
+    """Per-emotion test recall, one bar per model (shows where the rare classes fail)."""
+    ordered = sorted(runs, key=lambda r: list(COLORS).index(r["model"]) if r["model"] in COLORS else 99)
+    x = np.arange(len(EMOTIONS))
+    width = 0.8 / len(ordered)
+    fig, ax = plt.subplots(figsize=(8.5, 3.8), facecolor=SURFACE)
+    for k, m in enumerate(ordered):
+        r = [m["test_recall_per_class"][e] * 100 for e in EMOTIONS]
+        ax.bar(x + (k - (len(ordered) - 1) / 2) * width, r, width * 0.92, color=COLORS.get(m["model"]),
+               label=PRETTY.get(m["model"], m["model"]))
+    ax.set_xticks(x, EMOTIONS)
+    ax.set_ylabel("Test recall (%)", color=MUTED)
+    ax.set_ylim(0, 100)
+    ax.set_title("Recall per emotion on the test set", loc="left", color=INK, fontsize=11)
+    _style(ax)
+    ax.legend(fontsize=7.5, frameon=False, ncol=2, loc="upper right")
+    fig.tight_layout()
+    fig.savefig(path, dpi=150, facecolor=SURFACE)
     plt.close(fig)
 
 
@@ -96,6 +136,7 @@ def main() -> None:
     text = results_table(runs) + "\n\n" + recall_table(runs) + "\n"
     (args.out_dir / "results.md").write_text(text)
     plot_curves(runs, figs / "val_uar_curves.png")
+    plot_recall(runs, figs / "recall_per_emotion.png")
     plot_confusion(runs[0], figs / "confusion_best_model.png")
     print(text)
 
